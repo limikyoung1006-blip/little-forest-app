@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { TreePine, Leaf, Flower2, Heart, Users, MapPin, Calendar, ArrowRight } from 'lucide-react';
 
