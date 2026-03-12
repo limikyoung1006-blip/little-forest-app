@@ -112,6 +112,62 @@ const App = () => {
         </div>
       </section>
 
+      {/* Gratitude Section */}
+      <section id="community" className="py-24 px-6 bg-gradient-to-b from-white to-[#f8faf7]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">오늘의 감사 기록</h2>
+            <p className="text-[#6a8a6a]">우리들의 작은 숲에는 매일 따뜻한 감사들이 쌓여갑니다.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { name: "지우", content: "오늘 아침 숲속 공기가 너무 맑아서 행복했어요. 🌱", date: "2시간 전" },
+              { name: "민우", content: "따뜻한 차 한 잔과 함께하는 여유, 감사한 하루입니다.", date: "5시간 전" },
+              { name: "소연", content: "새로 심은 꽃이 드디어 꽃망울을 터뜨렸네요! 🌸", date: "어제" }
+            ].map((post, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+                className="bg-white p-6 rounded-3xl border border-[#e2ece0] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-[#f0f4ef] flex items-center justify-center font-bold text-[#4a6b4a]">
+                    {post.name[0]}
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm">{post.name}</div>
+                    <div className="text-[10px] text-[#9aada0]">{post.date}</div>
+                  </div>
+                </div>
+                <p className="text-[#5a7a5a] text-sm leading-relaxed mb-4">
+                  "{post.content}"
+                </p>
+                <div className="flex items-center gap-4 text-[#9aada0]">
+                  <button className="flex items-center gap-1 hover:text-[#4a6b4a] transition-colors">
+                    <Heart className="w-4 h-4" /> <span className="text-xs">12</span>
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#e2ece0] rounded-3xl p-6 text-[#9aada0] hover:border-[#4a6b4a] hover:text-[#4a6b4a] transition-all bg-white/50"
+            >
+              <div className="w-12 h-12 rounded-full border-2 border-current flex items-center justify-center">
+                <Leaf className="w-6 h-6" />
+              </div>
+              <span className="font-medium">나의 기록 남기기</span>
+            </motion.button>
+          </div>
+        </div>
+      </section>
+
       {/* Info Cards */}
       <section className="py-24 px-6 max-w-6xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
