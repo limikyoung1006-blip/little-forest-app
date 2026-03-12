@@ -1,37 +1,106 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+KR:wght@400;700&display=swap');
-
 :root {
-  font-family: 'Inter', 'Noto Sans KR', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color-scheme: light;
-  background-color: #f8faf7;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --primary-black: #0F0F0F;
+  --secondary-black: #1A1A1A;
+  --accent-gold: #D4AF37;
+  --accent-gold-soft: #C5A059;
+  --accent-gold-bright: #FFD700;
+  --text-white: #FFFFFF;
+  --text-gold: #D4AF37;
+  --text-grey: #8E8E93;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --shadow-premium: 0 15px 40px rgba(0, 0, 0, 0.5);
+  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+  --radius-xl: 20px;
+  --radius-lg: 12px;
 }
 
 * {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
+  font-family: var(--font-main);
+  background-color: var(--primary-black);
+  color: var(--text-white);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  color: var(--accent-gold);
 }
 
 button {
   cursor: pointer;
   border: none;
   font-family: inherit;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.font-serif {
-  font-family: 'Noto Serif KR', serif;
+.premium-card {
+  background: linear-gradient(135deg, var(--secondary-black) 0%, #2A2A2A 100%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-premium);
+}
+
+.layout {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    max-width: 1400px;
+    padding: 60px 40px;
+  }
+}
+
+.grid-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .grid-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1400px) {
+  .grid-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.finance-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+
+@media (min-width: 1200px) {
+  .finance-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
