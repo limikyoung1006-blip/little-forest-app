@@ -283,14 +283,24 @@ const AdminView: React.FC<AdminViewProps> = ({
 
             <div className="premium-card" style={{ padding: '24px' }}>
               <h4 style={{ marginBottom: '16px', color: 'var(--accent-gold)' }}>일괄 수강생 등록 (엑셀/CSV 파일) / BULK REGISTER</h4>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>형식: 번호,이름(보호자),연락처,강좌명,할인 대상 가정,비밀번호</p>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={onDownloadStudentTemplate} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 800 }}>
-                    📥 양식 다운로드 / TEMPLATE
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-black)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(212,175,55,0.2)' }}>
+                  <div>
+                    <p style={{ fontSize: '0.9rem', fontWeight: 700 }}>1. 양식 파일 다운로드</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>정해진 규격에 맞춰 데이터를 입력해 주세요.</p>
+                  </div>
+                  <button onClick={onDownloadStudentTemplate} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--accent-gold)', color: 'var(--accent-gold)', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800 }}>
+                    📥 양식 받기 / TEMPLATE
                   </button>
-                  <label style={{ padding: '6px 12px', background: 'var(--accent-gold)', color: 'black', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    파일 업로드 / UPLOAD
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-black)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(212,175,55,0.2)' }}>
+                  <div>
+                    <p style={{ fontSize: '0.9rem', fontWeight: 700 }}>2. 엑셀 파일 업로드</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>편집한 .csv 파일을 선택하여 등록합니다.</p>
+                  </div>
+                  <label style={{ padding: '8px 16px', background: 'var(--accent-gold)', color: 'black', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    파일 선택 / UPLOAD
                     <input 
                       type="file" 
                       accept=".csv" 
@@ -305,16 +315,12 @@ const AdminView: React.FC<AdminViewProps> = ({
                           };
                           reader.readAsText(file, 'UTF-8');
                         }
+                        e.target.value = ''; // Reset for same file selection
                       }} 
                     />
                   </label>
                 </div>
               </div>
-              <textarea id="bulk-stu-data" placeholder="또는 여기에 데이터를 직접 붙여넣으세요:&#10;번호,이름(보호자),연락처,강좌명,할인유형,비밀번호" style={{ width: '100%', height: '80px', padding: '12px', borderRadius: '8px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)', marginBottom: '12px', fontSize: '0.8rem' }} />
-              <button onClick={() => {
-                const data = (document.getElementById('bulk-stu-data') as HTMLTextAreaElement).value;
-                if (data) onBulkAddStudents(data);
-              }} style={{ width: '100%', padding: '12px', background: 'var(--accent-gold)', fontWeight: 800, borderRadius: '8px', color: 'black' }}>텍스트로 일괄 등록 / BULK ADD TEXT</button>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '12px 0', padding: '0 8px' }}>
@@ -988,34 +994,32 @@ const InstructorView: React.FC<InstructorViewProps> = ({ user, courses, students
             </div>
           </div>
           <div className="premium-card" style={{ padding: '24px', marginTop: '12px', border: '1px dashed var(--accent-gold)' }}>
-            <h4 style={{ marginBottom: '16px', color: 'var(--accent-gold)' }}>일괄 수강생 등록 / BULK REGISTER</h4>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>형식: 번호,이름(보호자),연락처,강좌명,할인 대상 가정,비밀번호</p>
-              <label style={{ padding: '6px 12px', background: 'var(--accent-gold)', color: 'black', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}>
-                파일 업로드 / UPLOAD EXCEL
-                <input 
-                  type="file" 
-                  accept=".csv" 
-                  style={{ display: 'none' }} 
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = (evt) => {
-                        const text = evt.target?.result as string;
-                        if (text) onBulkAddStudents(text);
-                      };
-                      reader.readAsText(file, 'UTF-8');
-                    }
-                  }} 
-                />
-              </label>
+            <h4 style={{ marginBottom: '16px', color: 'var(--accent-gold)' }}>일괄 수강생 등록 (엑셀파일) / BULK REGISTER</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-black)', padding: '12px', borderRadius: '8px' }}>
+                <p style={{ fontSize: '0.8rem' }}>엑셀 파일 업로드 (.csv)</p>
+                <label style={{ padding: '8px 16px', background: 'var(--accent-gold)', color: 'black', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
+                  파일 선택 / UPLOAD
+                  <input 
+                    type="file" 
+                    accept=".csv" 
+                    style={{ display: 'none' }} 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          const text = evt.target?.result as string;
+                          if (text) onBulkAddStudents(text);
+                        };
+                        reader.readAsText(file, 'UTF-8');
+                      }
+                      e.target.value = '';
+                    }} 
+                  />
+                </label>
+              </div>
             </div>
-            <textarea id="inst-bulk-stu-data" placeholder="번호,이름(보호자),연락처,강좌명,할인유형,비밀번호&#10;예: 1,홍길동,010-1234-5678,명품 와인,일반,1234" style={{ width: '100%', height: '80px', padding: '12px', borderRadius: '8px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)', marginBottom: '12px', fontSize: '0.8rem' }} />
-            <button onClick={() => {
-              const data = (document.getElementById('inst-bulk-stu-data') as HTMLTextAreaElement).value;
-              if (data) onBulkAddStudents(data);
-            }} style={{ width: '100%', padding: '12px', background: 'var(--accent-gold)', fontWeight: 800, borderRadius: '8px', color: 'black' }}>일괄 등록 / BULK ADD</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {students.map((s: Student) => (
