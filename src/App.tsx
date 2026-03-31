@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { supabase } from './supabaseClient';
 import {
   CreditCard, History, User,
@@ -297,25 +298,29 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-black)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(212,175,55,0.2)' }}>
                   <div>
                     <p style={{ fontSize: '0.9rem', fontWeight: 700 }}>2. 엑셀 파일 업로드</p>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>편집한 .csv 파일을 선택하여 등록합니다.</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>편집한 엑셀(.xlsx) 파일을 선택하여 등록합니다.</p>
                   </div>
                   <label style={{ padding: '8px 16px', background: 'var(--accent-gold)', color: 'black', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     파일 선택 / UPLOAD
                     <input 
                       type="file" 
-                      accept=".csv" 
+                      accept=".xlsx, .xls, .csv" 
                       style={{ display: 'none' }} 
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
                           const reader = new FileReader();
                           reader.onload = (evt) => {
-                            const text = evt.target?.result as string;
-                            if (text) onBulkAddStudents(text);
+                            const data = evt.target?.result;
+                            const workbook = XLSX.read(data, { type: 'binary' });
+                            const sheetName = workbook.SheetNames[0];
+                            const sheet = workbook.Sheets[sheetName];
+                            const csvText = XLSX.utils.sheet_to_csv(sheet);
+                            if (csvText) onBulkAddStudents(csvText);
                           };
-                          reader.readAsText(file, 'UTF-8');
+                          reader.readAsBinaryString(file);
                         }
-                        e.target.value = ''; // Reset for same file selection
+                        e.target.value = '';
                       }} 
                     />
                   </label>
@@ -997,22 +1002,26 @@ const InstructorView: React.FC<InstructorViewProps> = ({ user, courses, students
             <h4 style={{ marginBottom: '16px', color: 'var(--accent-gold)' }}>일괄 수강생 등록 (엑셀파일) / BULK REGISTER</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-black)', padding: '12px', borderRadius: '8px' }}>
-                <p style={{ fontSize: '0.8rem' }}>엑셀 파일 업로드 (.csv)</p>
+                <p style={{ fontSize: '0.8rem' }}>엑셀 파일 업로드 (.xlsx)</p>
                 <label style={{ padding: '8px 16px', background: 'var(--accent-gold)', color: 'black', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
                   파일 선택 / UPLOAD
                   <input 
                     type="file" 
-                    accept=".csv" 
+                    accept=".xlsx, .xls, .csv" 
                     style={{ display: 'none' }} 
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
                         const reader = new FileReader();
                         reader.onload = (evt) => {
-                          const text = evt.target?.result as string;
-                          if (text) onBulkAddStudents(text);
+                          const data = evt.target?.result;
+                          const workbook = XLSX.read(data, { type: 'binary' });
+                          const sheetName = workbook.SheetNames[0];
+                          const sheet = workbook.Sheets[sheetName];
+                          const csvText = XLSX.utils.sheet_to_csv(sheet);
+                          if (csvText) onBulkAddStudents(csvText);
                         };
-                        reader.readAsText(file, 'UTF-8');
+                        reader.readAsBinaryString(file);
                       }
                       e.target.value = '';
                     }} 
@@ -1731,27 +1740,24 @@ const App: React.FC = () => {
   };
 
   const downloadAttendanceCSV = () => {
-    let csvContent = "\ufeff날짜,번호,강좌명,학생명(보호자),연락처,출석여부\n";
+    const data = [["날짜", "번호", "강좌명", "학생명(보호자)", "연락처", "출석여부"]];
     courses.forEach(c => {
       c.studentIds.forEach(sid => {
         const s = students.find(student => student.id === sid);
         if (s) {
           const status = s.attendance[selectedDate] ? "출석" : "미출석";
-          csvContent += `${selectedDate},${s.studentNo || s.id},${c.title},${s.name},${s.phone || 'N/A'},${status}\n`;
+          data.push([selectedDate, s.studentNo || s.id, c.title, s.name, s.phone || 'N/A', status]);
         }
       });
     });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `attendance_${selectedDate}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+    XLSX.writeFile(workbook, `attendance_${selectedDate}.xlsx`);
   };
 
   const downloadFinanceCSV = () => {
-    let csvContent = `\ufeff번호,이름(보호자),연락처,강좌명,할인유형,기본수강료,납부금액,교회지원금(${discountRate}%),완납여부\n`;
+    const data = [[`번호`, `이름(보호자)`, `연락처`, `강좌명`, `할인유형`, `기본수강료`, `납부금액`, `교회지원금(${discountRate}%)`, `완납여부`]];
     courses.forEach(c => {
       c.studentIds.forEach(sid => {
         const s = students.find(student => student.id === sid);
@@ -1759,28 +1765,26 @@ const App: React.FC = () => {
           const p = s.coursePayments[c.id] || { amount: 0, isFullyPaid: false };
           const discountAmt = (s.discountedCourseId === c.id && s.discountType && s.discountType !== 'NONE') ? Math.round(c.fee * (discountRate / 100)) : 0;
           const discountLabel = DISCOUNT_LABELS[s.discountType || 'NONE'].split(' / ')[0];
-          csvContent += `${s.studentNo || s.id},${s.name},${s.phone || 'N/A'},${c.title},${discountLabel},${c.fee},${p.amount},${discountAmt},${p.isFullyPaid ? "완납" : "미납"}\n`;
+          data.push([s.studentNo || s.id, s.name, s.phone || 'N/A', c.title, discountLabel, c.fee, p.amount, discountAmt, p.isFullyPaid ? "완납" : "미납"]);
         }
       });
     });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `finance_status.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Finance");
+    XLSX.writeFile(workbook, "finance_status.xlsx");
   };
 
   const downloadStudentTemplateCSV = () => {
-    const csvContent = "\ufeff번호,이름(보호자),연락처,강좌명,할인 대상 가정,비밀번호\n1,홍길동,010-1234-5678,명품 와인,일반,1234\n2,성춘향,010-9876-5432,프리미엄 세라믹,다문화,0000";
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", "registration_template.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const data = [
+      ["번호", "이름(보호자)", "연락처", "강좌명", "할인 대상 가정", "비밀번호"],
+      ["1", "홍길동", "010-1234-5678", "명품 와인", "일반", "1234"],
+      ["2", "성춘향", "010-9876-5432", "프리미엄 세라믹", "다문화", "0000"]
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "RegistrationTemplate");
+    XLSX.writeFile(workbook, "registration_template.xlsx");
   };
 
   if (isLoading) {
