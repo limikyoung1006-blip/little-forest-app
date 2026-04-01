@@ -164,6 +164,7 @@ interface AdminViewProps {
   onDownloadStudentTemplate: () => void;
   discountRate: number;
   onUpdateDiscountRate: (rate: number) => void;
+  onBulkRegisterToCourse: (sids: string[], cid: string) => void;
 }
 
 const AdminView: React.FC<AdminViewProps> = ({
@@ -173,7 +174,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   onBulkAddStudents, onUpdatePayment, onUpdateCourseFee, onToggleAttendance,
   onBulkDeleteStudents, onBulkDeleteInstructors, onBulkDeleteCourses,
   onDownloadAttendance, onDownloadFinance, onUpdateDiscount, onDownloadStudentTemplate,
-  discountRate, onUpdateDiscountRate
+  discountRate, onUpdateDiscountRate, onBulkRegisterToCourse
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   useEffect(() => {
@@ -343,17 +344,37 @@ const AdminView: React.FC<AdminViewProps> = ({
                 <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>| {students.length}명 중 {selectedIds.length}명 선택</span>
               </div>
               {selectedIds.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (window.confirm(`${selectedIds.length}명의 수강생을 삭제하시겠습니까?`)) {
-                      onBulkDeleteStudents(selectedIds);
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <select 
+                    id="bulk-crs-reg" 
+                    style={{ padding: '8px', borderRadius: '8px', background: 'var(--secondary-black)', color: 'white', border: '1px solid var(--accent-gold)', fontSize: '0.75rem' }}
+                  >
+                    <option value="">강좌 선택 / SELECT COURSE</option>
+                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const cid = (document.getElementById('bulk-crs-reg') as HTMLSelectElement).value;
+                      if (!cid) { alert('강좌를 선택해주세요.'); return; }
+                      onBulkRegisterToCourse(selectedIds, cid);
                       setSelectedIds([]);
-                    }
-                  }}
-                  style={{ background: '#FF4B4B', color: 'white', padding: '8px 16px', borderRadius: '8px', fontWeight: 800, fontSize: '0.75rem', border: 'none' }}
-                >
-                  선택 수강생 삭제 / DELETE SELECTED
-                </button>
+                    }}
+                    style={{ background: 'var(--accent-gold)', color: 'black', padding: '8px 16px', borderRadius: '8px', fontWeight: 800, fontSize: '0.75rem', border: 'none' }}
+                  >
+                    강좌 등록 / REGISTER
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`${selectedIds.length}명의 수강생을 삭제하시겠습니까?`)) {
+                        onBulkDeleteStudents(selectedIds);
+                        setSelectedIds([]);
+                      }
+                    }}
+                    style={{ background: '#FF4B4B', color: 'white', padding: '8px 16px', borderRadius: '8px', fontWeight: 800, fontSize: '0.75rem', border: 'none' }}
+                  >
+                    선택 삭제
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1702,6 +1723,37 @@ const App: React.FC = () => {
       alert('올바른 형식이 아닙니다 (번호,이름,연락처,강좌명,할인유형,비밀번호).');
     }
   };
+  
+  const bulkRegisterToCourse = (sids: string[], cid: string) => {
+    const targetCourse = courses.find(c => c.id === cid);
+    if (!targetCourse) return;
+
+    setStudents(prev => prev.map(s => {
+      if (sids.includes(s.id)) {
+        if (!s.enrolledCourses.includes(cid)) {
+          return {
+            ...s,
+            enrolledCourses: [...s.enrolledCourses, cid],
+            coursePayments: {
+              ...s.coursePayments,
+              [cid]: { amount: 0, isFullyPaid: false }
+            }
+          };
+        }
+      }
+      return s;
+    }));
+
+    setCourses(prev => prev.map(c => {
+      if (c.id === cid) {
+        const uniqueIds = Array.from(new Set([...c.studentIds, ...sids]));
+        return { ...c, studentIds: uniqueIds };
+      }
+      return c;
+    }));
+
+    alert(`${sids.length}명의 수강생이 '${targetCourse.title}' 강좌에 일괄 등록되었습니다.`);
+  };
 
   const updateCourseFee = (id: string, fee: number) => {
     setCourses(prev => prev.map(c => c.id === id ? { ...c, fee } : c));
@@ -1850,6 +1902,7 @@ const App: React.FC = () => {
               onBulkDeleteCourses={bulkDeleteCourses}
               discountRate={discountRate}
               onUpdateDiscountRate={setDiscountRate}
+              onBulkRegisterToCourse={bulkRegisterToCourse}
             />
           )}
           {currentUser.role === 'INSTRUCTOR' && (
