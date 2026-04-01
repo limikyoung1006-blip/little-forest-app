@@ -1399,7 +1399,12 @@ const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, students, inst
 
 const App: React.FC = () => {
   // --- Global State ---
-  const [currentUser, setCurrentUser] = useState<(BaseUser | Student | Instructor) | null>(null);
+  const [currentUser, setCurrentUser] = useState<(BaseUser | Student | Instructor) | null>(() => {
+    try {
+      const saved = localStorage.getItem('lf_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
   const [students, setStudents] = useState<Student[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [generalAdmins, setGeneralAdmins] = useState<BaseUser[]>([]);
@@ -1440,9 +1445,31 @@ const App: React.FC = () => {
         setCourses(remoteData.courses || INITIAL_COURSES);
         setDiscountRate(remoteData.discount_rate || 30);
         
-        // currentUser is device-specific for auto-login
+        // Refresh currentUser object from the newly loaded data
         const savedUser = localStorage.getItem('lf_current_user');
-        if (savedUser) setCurrentUser(JSON.parse(savedUser));
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            if (parsed) {
+              const allPossibleUsers = [
+                ...(remoteData.admins || INITIAL_GENERAL_ADMINS),
+                ...(remoteData.instructors || INITIAL_INSTRUCTORS),
+                ...(remoteData.students || INITIAL_STUDENTS)
+              ];
+              const latest = allPossibleUsers.find(u => u.id === parsed.id);
+              if (latest) {
+                setCurrentUser(latest);
+              } else if (parsed.id === INITIAL_SUPER_ADMIN.id) {
+                setCurrentUser(INITIAL_SUPER_ADMIN);
+              } else {
+                // If user not found in remote data, clear local logout
+                setCurrentUser(null);
+              }
+            }
+          } catch (e) {
+            console.error("Auto-login parsed failed", e);
+          }
+        }
         
       } catch (err) {
         console.error("Cloud load error:", err);
@@ -1460,8 +1487,10 @@ const App: React.FC = () => {
 
   // --- Persistence Sync (Local & Cloud) ---
   useEffect(() => {
-    localStorage.setItem('lf_current_user', JSON.stringify(currentUser));
-  }, [currentUser]);
+    if (!isLoading) {
+      localStorage.setItem('lf_current_user', JSON.stringify(currentUser));
+    }
+  }, [currentUser, isLoading]);
 
   useEffect(() => {
     syncToCloud('students', students);
