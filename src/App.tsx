@@ -79,27 +79,28 @@ const INITIAL_COURSES: Course[] = [
 
 // --- Sub-Components ---
 
-// 0. HEADER COMPONENT
 const Header: React.FC = () => (
   <header style={{ 
     display: 'flex', 
-    flexDirection: 'column', 
+    flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    padding: '40px 24px', 
-    textAlign: 'center',
+    padding: '30px 24px', 
+    gap: '20px',
     background: 'linear-gradient(180deg, rgba(191,149,63,0.1) 0%, transparent 100%)',
-    borderRadius: '0 0 40px 40px',
-    marginBottom: '20px'
+    borderRadius: '0 0 32px 32px',
+    marginBottom: '20px',
+    borderBottom: '1px solid rgba(191,149,63,0.05)'
   }}>
     <div style={{ 
-      width: '120px', 
-      height: '120px', 
-      marginBottom: '20px', 
-      borderRadius: '30px', 
+      width: '80px', 
+      height: '80px', 
+      borderRadius: '20px', 
       overflow: 'hidden',
-      boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-      border: '2px solid var(--accent-gold)'
+      boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+      border: '2px solid var(--accent-gold)',
+      backgroundColor: 'var(--secondary-black)',
+      flexShrink: 0
     }}>
       <img 
         src="/logo.png" 
@@ -111,24 +112,28 @@ const Header: React.FC = () => (
         }}
       />
     </div>
-    <h1 style={{ 
-      fontSize: '1.8rem', 
-      fontWeight: 900, 
-      letterSpacing: '1px', 
-      color: 'white',
-      margin: 0
-    }}>
-      LITTLE FOREST
-    </h1>
-    <p style={{ 
-      fontSize: '0.9rem', 
-      fontWeight: 400, 
-      color: 'var(--accent-gold)', 
-      marginTop: '4px',
-      letterSpacing: '2px'
-    }}>
-      CULTURE CENTER (리틀포레스트 문화센터)
-    </p>
+    <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <h1 style={{ 
+        fontSize: '1.4rem', 
+        fontWeight: 900, 
+        letterSpacing: '1px', 
+        color: 'white',
+        lineHeight: '1.2',
+        margin: 0
+      }}>
+        LITTLE FOREST CULTURE CENTER
+      </h1>
+      <p style={{ 
+        fontSize: '1.1rem', 
+        fontWeight: 600, 
+        color: 'var(--accent-gold)', 
+        marginTop: '2px',
+        letterSpacing: '1px',
+        margin: 0
+      }}>
+        리틀포레스트 문화센터
+      </p>
+    </div>
   </header>
 );
 
