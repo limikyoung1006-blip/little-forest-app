@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import './index.css';
+import logo from './logo.png';
 
 // --- Types ---
 type Role = 'SUPER_ADMIN' | 'ADMIN' | 'INSTRUCTOR' | 'STUDENT';
@@ -103,7 +104,7 @@ const Header: React.FC = () => (
       flexShrink: 0
     }}>
       <img 
-        src="/logo.png" 
+        src={logo} 
         alt="Little Forest Logo" 
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         onError={(e) => {
