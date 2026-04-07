@@ -79,6 +79,59 @@ const INITIAL_COURSES: Course[] = [
 
 // --- Sub-Components ---
 
+// 0. HEADER COMPONENT
+const Header: React.FC = () => (
+  <header style={{ 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    padding: '40px 24px', 
+    textAlign: 'center',
+    background: 'linear-gradient(180deg, rgba(191,149,63,0.1) 0%, transparent 100%)',
+    borderRadius: '0 0 40px 40px',
+    marginBottom: '20px'
+  }}>
+    <div style={{ 
+      width: '120px', 
+      height: '120px', 
+      marginBottom: '20px', 
+      borderRadius: '30px', 
+      overflow: 'hidden',
+      boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+      border: '2px solid var(--accent-gold)'
+    }}>
+      <img 
+        src="/logo.png" 
+        alt="Little Forest Logo" 
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        onError={(e) => {
+          // Fallback if image not found
+          (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/144/evergreen-tree.png';
+        }}
+      />
+    </div>
+    <h1 style={{ 
+      fontSize: '1.8rem', 
+      fontWeight: 900, 
+      letterSpacing: '1px', 
+      color: 'white',
+      margin: 0
+    }}>
+      LITTLE FOREST
+    </h1>
+    <p style={{ 
+      fontSize: '0.9rem', 
+      fontWeight: 400, 
+      color: 'var(--accent-gold)', 
+      marginTop: '4px',
+      letterSpacing: '2px'
+    }}>
+      CULTURE CENTER (리틀포레스트 문화센터)
+    </p>
+  </header>
+);
+
 // 0. LOGIN VIEW
 interface LoginViewProps {
   loginForm: { name: string; birthdate: string; password: string };
@@ -87,45 +140,44 @@ interface LoginViewProps {
   showPassword: boolean;
   setShowPassword: React.Dispatch<React.SetStateAction<boolean>>;
 }
-
 const LoginView: React.FC<LoginViewProps> = ({ loginForm, setLoginForm, handleLogin, showPassword, setShowPassword }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', height: '80vh', justifyContent: 'center', padding: '24px' }}>
-    <header style={{ textAlign: 'center', marginBottom: '40px' }}>
-      <h1 style={{ fontSize: '2.5rem', letterSpacing: '2px' }}>LITTLE FOREST<br /><span style={{ fontWeight: 300, fontSize: '1.2rem', color: 'var(--text-grey)' }}>ROYAL SYSTEM (로열 시스템)</span></h1>
-    </header>
-    <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <input
-        className="premium-input"
-        placeholder="성함 (NAME)"
-        value={loginForm.name}
-        onChange={e => setLoginForm({ ...loginForm, name: e.target.value })}
-        style={{ padding: '16px', borderRadius: '12px', background: 'var(--secondary-black)', color: 'white', border: '1px solid var(--glass-border)' }}
-      />
-      <input
-        className="premium-input"
-        placeholder="생년월일 (BIRTHDATE) 예: 800101"
-        value={loginForm.birthdate}
-        maxLength={6}
-        onChange={e => setLoginForm({ ...loginForm, birthdate: e.target.value })}
-        style={{ padding: '16px', borderRadius: '12px', background: 'var(--secondary-black)', color: 'white', border: '1px solid var(--glass-border)' }}
-      />
-      <div style={{ position: 'relative' }}>
+  <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', padding: '0 0 40px 0' }}>
+    <Header />
+    <div style={{ padding: '0 24px' }}>
+      <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <input
-          type={showPassword ? 'text' : 'password'}
           className="premium-input"
-          placeholder="비밀번호 (PASSWORD)"
-          value={loginForm.password}
-          onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
-          style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'var(--secondary-black)', color: 'white', border: '1px solid var(--glass-border)' }}
+          placeholder="성함 (NAME)"
+          value={loginForm.name}
+          onChange={e => setLoginForm({ ...loginForm, name: e.target.value })}
+          style={{ padding: '16px', borderRadius: '12px', background: 'var(--secondary-black)', color: 'white', border: '1px solid var(--glass-border)' }}
         />
-        <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '16px', top: '16px', background: 'none', border: 'none' }}>
-          {showPassword ? <EyeOff size={20} color="var(--text-grey)" /> : <Eye size={20} color="var(--text-grey)" />}
+        <input
+          className="premium-input"
+          placeholder="생년월일 (BIRTHDATE) 예: 800101"
+          value={loginForm.birthdate}
+          maxLength={6}
+          onChange={e => setLoginForm({ ...loginForm, birthdate: e.target.value })}
+          style={{ padding: '16px', borderRadius: '12px', background: 'var(--secondary-black)', color: 'white', border: '1px solid var(--glass-border)' }}
+        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            className="premium-input"
+            placeholder="비밀번호 (PASSWORD)"
+            value={loginForm.password}
+            onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
+            style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'var(--secondary-black)', color: 'white', border: '1px solid var(--glass-border)' }}
+          />
+          <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '16px', top: '16px', background: 'none', border: 'none' }}>
+            {showPassword ? <EyeOff size={20} color="var(--text-grey)" /> : <Eye size={20} color="var(--text-grey)" />}
+          </button>
+        </div>
+        <button type="submit" style={{ padding: '18px', backgroundColor: 'var(--accent-gold)', borderRadius: '12px', fontWeight: 900, fontSize: '1.1rem', marginTop: '10px', color: 'black' }}>
+          로그인 / LOG IN
         </button>
-      </div>
-      <button type="submit" style={{ padding: '18px', backgroundColor: 'var(--accent-gold)', borderRadius: '12px', fontWeight: 900, fontSize: '1.1rem', marginTop: '10px', color: 'black' }}>
-        로그인 / LOG IN
-      </button>
-    </form>
+      </form>
+    </div>
   </div>
 );
 
@@ -188,7 +240,8 @@ const AdminView: React.FC<AdminViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '100px' }}>
-      <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '10px' }}>
+      <Header />
+      <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '0 24px 10px 24px' }}>
         {tabs.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{
@@ -934,6 +987,7 @@ const InstructorView: React.FC<InstructorViewProps> = ({ user, courses, students
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '100px' }}>
+      <Header />
       <header className="premium-card" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-grey)' }}>강사 대시보드 / INSTRUCTOR DASHBOARD</p>
@@ -1086,6 +1140,7 @@ const StudentView: React.FC<StudentViewProps> = ({ user, courses, isFlipped, set
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '100px' }}>
+      <Header />
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem' }}>{user.name} <span style={{ fontWeight: 300, fontSize: '0.8rem', color: 'var(--text-grey)' }}>ROYAL MEMBERSHIP</span></h1>
