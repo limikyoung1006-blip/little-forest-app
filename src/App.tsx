@@ -4,7 +4,8 @@ import { supabase } from './supabaseClient';
 import {
   CreditCard, History, User,
   Users, BookOpen, LogOut, CheckCircle2, XCircle, Trash2,
-  DollarSign, Edit3, Clock, Eye, EyeOff, BarChart3, TrendingUp, ShieldCheck
+  DollarSign, Edit3, Clock, Eye, EyeOff, BarChart3, TrendingUp, ShieldCheck,
+  Bell, Send, Mail, MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
@@ -53,6 +54,16 @@ interface Course {
   studentIds: string[];
   time: string; // e.g. '14:00 - 16:00'
   fee: number;
+}
+
+interface Notice {
+  id: string;
+  senderId: string;
+  targetIds: string[]; // Empty means "All"
+  title: string;
+  content: string;
+  createdAt: string;
+  readBy: string[]; // Student IDs who read this
 }
 
 // --- Mock Initial Data ---
@@ -226,6 +237,9 @@ interface AdminViewProps {
   setEditCourse: (course: Course | null) => void;
   editCourse: Course | null;
   onUpdateCourseInfo: (id: string, title: string, time: string, instructorId: string, fee: number) => void;
+  notices: Notice[];
+  onSendNotice: (title: string, content: string, targetIds: string[]) => void;
+  onDeleteNotice: (id: string) => void;
 }
 
 const AdminView: React.FC<AdminViewProps> = ({
@@ -236,16 +250,17 @@ const AdminView: React.FC<AdminViewProps> = ({
   onBulkDeleteStudents, onBulkDeleteInstructors, onBulkDeleteCourses,
   onDownloadAttendance, onDownloadFinance, onUpdateDiscount, onDownloadStudentTemplate,
   discountRate, onUpdateDiscountRate, onBulkRegisterToCourse,
-  setEditCourse, editCourse, onUpdateCourseInfo
+  setEditCourse, editCourse, onUpdateCourseInfo, notices, onSendNotice, onDeleteNotice
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [noticeForm, setNoticeForm] = useState({ title: '', content: '', target: 'ALL' });
   useEffect(() => {
     setSelectedIds([]);
   }, [activeTab]);
   const isSuper = currentUser.role === 'SUPER_ADMIN';
   const isAdmin = currentUser.role === 'ADMIN' || isSuper;
 
-  const tabs = ['STUDENTS', 'INSTRUCTORS', 'COURSES', 'REPORT', 'ATTENDANCE', 'FINANCE'];
+  const tabs = ['STUDENTS', 'INSTRUCTORS', 'COURSES', 'REPORT', 'ATTENDANCE', 'FINANCE', 'NOTICES'];
   if (isSuper) tabs.push('ADMINS');
 
   return (
@@ -457,7 +472,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                     <div>
                       <p style={{ fontWeight: 800, color: 'var(--accent-gold)' }}>{s.name} <span style={{ fontSize: '0.7rem', opacity: 0.5, marginLeft: '4px' }}>#{s.studentNo || s.id}</span></p>
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginTop: '4px' }}>
-                        PW: {s.password} | PH: {s.phone || 'N/A'} | BAL: ₩{s.balance.toLocaleString()}
+                        강좌: {s.enrolledCourses.map((cid: string) => courses.find((c: Course) => c.id === cid)?.title).filter(Boolean).join(', ') || '배정 없음'} | PH: {s.phone || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -916,6 +931,67 @@ const AdminView: React.FC<AdminViewProps> = ({
             </div>
           );
         })()}
+        {activeTab === 'NOTICES' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="premium-card" style={{ padding: '24px' }}>
+              <h3 style={{ color: 'var(--accent-gold)', marginBottom: '16px' }}>새 공지사항 작성 / NEW NOTICE</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <input 
+                  placeholder="제목 (TITLE)"
+                  value={noticeForm.title}
+                  onChange={e => setNoticeForm({ ...noticeForm, title: e.target.value })}
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
+                />
+                <textarea 
+                  placeholder="내용을 입력하세요 (CONTENT)..."
+                  value={noticeForm.content}
+                  onChange={e => setNoticeForm({ ...noticeForm, content: e.target.value })}
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)', minHeight: '120px' }}
+                />
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <select 
+                    value={noticeForm.target}
+                    onChange={e => setNoticeForm({ ...noticeForm, target: e.target.value })}
+                    style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
+                  >
+                    <option value="ALL">모든 수강생 / ALL STUDENTS</option>
+                    {students.map(s => <option key={s.id} value={s.id}>{s.name} (#{s.studentNo || s.id})</option>)}
+                  </select>
+                  <button 
+                    onClick={() => {
+                      if (!noticeForm.title || !noticeForm.content) { alert('제목과 내용을 입력해주세요.'); return; }
+                      onSendNotice(noticeForm.title, noticeForm.content, noticeForm.target === 'ALL' ? [] : [noticeForm.target]);
+                      setNoticeForm({ title: '', content: '', target: 'ALL' });
+                    }}
+                    style={{ padding: '14px 24px', background: 'var(--accent-gold)', color: 'black', fontWeight: 800, borderRadius: '12px', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Send size={18} /> 보내기 / SEND
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <h4 style={{ opacity: 0.6, fontSize: '0.8rem', paddingLeft: '8px' }}>보낸 공지 내역 / SENT HISTORY</h4>
+              {notices.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: '#555' }}>보낸 공지사항이 없습니다.</div>}
+              {notices.map(notice => (
+                <div key={notice.id} className="premium-card" style={{ padding: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontWeight: 800, marginBottom: '4px', color: 'var(--accent-gold)' }}>{notice.title}</h4>
+                      <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap' }}>{notice.content}</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '12px', fontSize: '0.7rem', color: 'var(--text-grey)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> {new Date(notice.createdAt).toLocaleString()}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={12} /> 대상: {notice.targetIds.length === 0 ? '전체' : '개별'} ({notice.readBy.length}명 읽음)</span>
+                      </div>
+                    </div>
+                    <button onClick={() => onDeleteNotice(notice.id)} style={{ background: 'none', border: 'none', padding: '4px' }}><Trash2 size={18} color="#FF4B4B" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit User Info Modal */}
@@ -1254,122 +1330,160 @@ interface StudentViewProps {
   onLogout: () => void;
   onRecharge: (amount: number) => void;
   activeTab: string;
+  notices: Notice[];
+  onReadNotice: (id: string) => void;
 }
 
-const StudentView: React.FC<StudentViewProps> = ({ user, courses, isFlipped, setIsFlipped, onLogout, onRecharge, activeTab }) => {
+const StudentView: React.FC<StudentViewProps> = ({ user, courses, isFlipped, setIsFlipped, onLogout, onRecharge, activeTab, notices, onReadNotice }) => {
   const [showRecharge, setShowRecharge] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [payMethod, setPayMethod] = useState<string>('CARD');
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '100px' }}>
-      <Header />
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem' }}>{user.name} <span style={{ fontWeight: 300, fontSize: '0.8rem', color: 'var(--text-grey)' }}>ROYAL MEMBERSHIP</span></h1>
-        </div>
-        <button onClick={onLogout} style={{ background: 'none', border: 'none', color: 'var(--text-grey)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <LogOut size={18} /> <span style={{ fontSize: '0.7rem' }}>LOGOUT</span>
-        </button>
-      </header>
+    const relevantNotices = notices.filter(n => n.targetIds.length === 0 || n.targetIds.includes(user.id));
 
-      {activeTab === 'CARD' && (
-        <>
-          <section style={{ perspective: '1200px' }}>
-            <motion.div style={{ width: '100%', height: '220px', position: 'relative', transformStyle: 'preserve-3d', cursor: 'pointer' }} animate={{ rotateY: isFlipped ? 180 : 0 }} onClick={() => setIsFlipped(!isFlipped)}>
-              <div className="premium-card" style={{ position: 'absolute', width: '100%', height: '100%', backfaceVisibility: 'hidden', padding: '30px', color: '#000', borderRadius: '20px', background: 'linear-gradient(135deg, #BF953F 0%, #FCF6BA 45%, #B38728 50%, #FBF5B7 55%, #AA771C 100%)' }}>
-                <span style={{ fontWeight: 900, letterSpacing: '2px' }}>ROYAL PASS (로열 패스)</span>
-                <div style={{ marginTop: '50px' }}>
-                  <p style={{ opacity: 0.6, fontSize: '0.7rem' }}>NAME (성함)</p>
-                  <h2 style={{ fontSize: '1.8rem', letterSpacing: '2px' }}>{user.name}</h2>
-                </div>
-                <div style={{ position: 'absolute', bottom: '30px', right: '30px', fontSize: '0.8rem', fontWeight: 900, opacity: 0.8 }}>LITTLE FOREST</div>
-              </div>
-              <div className="premium-card" style={{ position: 'absolute', width: '100%', height: '100%', backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: '20px', background: 'var(--secondary-black)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--accent-gold)' }}>
-                <div style={{ padding: '12px', background: 'white', borderRadius: '12px' }}>
-                  <QRCodeSVG value={`ROYAL-${user.name}`} size={120} />
-                </div>
-              </div>
-            </motion.div>
-          </section>
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '120px' }}>
+        <Header />
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem' }}>{user.name} <span style={{ fontWeight: 300, fontSize: '0.8rem', color: 'var(--text-grey)' }}>ROYAL MEMBERSHIP</span></h1>
+          </div>
+          <button onClick={onLogout} style={{ background: 'none', border: 'none', color: 'var(--text-grey)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <LogOut size={18} /> <span style={{ fontSize: '0.7rem' }}>LOGOUT</span>
+          </button>
+        </header>
 
-          <section className="premium-card" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>현재 잔액 / CURRENT BALANCE</p>
-              <h2 style={{ fontSize: '2rem', color: 'var(--accent-gold)' }}>₩ {user.balance.toLocaleString()}</h2>
-            </div>
-            <button
-              onClick={() => setShowRecharge(true)}
-              style={{ padding: '12px 20px', backgroundColor: 'var(--accent-gold)', borderRadius: '12px', fontWeight: 900, color: 'black', border: 'none' }}>
-              충전 / RECHARGE
-            </button>
-          </section>
-
-          <section>
-            <h3>수강 중인 강좌 / REGISTERED COURSES</h3>
-            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {user.enrolledCourses.map(cid => {
-                const c = courses.find(course => course.id === cid);
-                return (
-                  <div key={cid} className="premium-card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>{c?.title}</span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--accent-gold)' }}>수강 중 / ENROLLED</span>
+        {activeTab === 'CARD' && (
+          <>
+            <section style={{ perspective: '1200px' }}>
+              <motion.div style={{ width: '100%', height: '220px', position: 'relative', transformStyle: 'preserve-3d', cursor: 'pointer' }} animate={{ rotateY: isFlipped ? 180 : 0 }} onClick={() => setIsFlipped(!isFlipped)}>
+                <div className="premium-card" style={{ position: 'absolute', width: '100%', height: '100%', backfaceVisibility: 'hidden', padding: '30px', color: '#000', borderRadius: '20px', background: 'linear-gradient(135deg, #BF953F 0%, #FCF6BA 45%, #B38728 50%, #FBF5B7 55%, #AA771C 100%)' }}>
+                  <span style={{ fontWeight: 900, letterSpacing: '2px' }}>ROYAL PASS (로열 패스)</span>
+                  <div style={{ marginTop: '50px' }}>
+                    <p style={{ opacity: 0.6, fontSize: '0.7rem' }}>NAME (성함)</p>
+                    <h2 style={{ fontSize: '1.8rem', letterSpacing: '2px' }}>{user.name}</h2>
                   </div>
-                )
+                  <div style={{ position: 'absolute', bottom: '30px', right: '30px', fontSize: '0.8rem', fontWeight: 900, opacity: 0.8 }}>LITTLE FOREST</div>
+                </div>
+                <div className="premium-card" style={{ position: 'absolute', width: '100%', height: '100%', backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', borderRadius: '20px', background: 'var(--secondary-black)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--accent-gold)' }}>
+                  <div style={{ padding: '12px', background: 'white', borderRadius: '12px' }}>
+                    <QRCodeSVG value={`ROYAL-${user.name}`} size={120} />
+                  </div>
+                </div>
+              </motion.div>
+            </section>
+
+            <section className="premium-card" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>현재 잔액 / CURRENT BALANCE</p>
+                <h2 style={{ fontSize: '2rem', color: 'var(--accent-gold)' }}>₩ {user.balance.toLocaleString()}</h2>
+              </div>
+              <button
+                onClick={() => setShowRecharge(true)}
+                style={{ padding: '12px 20px', backgroundColor: 'var(--accent-gold)', borderRadius: '12px', fontWeight: 900, color: 'black', border: 'none' }}>
+                충전 / RECHARGE
+              </button>
+            </section>
+
+            <section>
+              <h3>수강 중인 강좌 / REGISTERED COURSES</h3>
+              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {user.enrolledCourses.map(cid => {
+                  const c = courses.find(course => course.id === cid);
+                  return (
+                    <div key={cid} className="premium-card" style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>{c?.title}</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--accent-gold)' }}>수강 중 / ENROLLED</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeTab === 'HISTORY' && (
+          <section>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '24px' }}>이용 내역 / USAGE HISTORY</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="premium-card" style={{ padding: '20px' }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>2026.03.10</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                  <span>포인트 충전 / RECHARGE</span>
+                  <span style={{ color: 'var(--accent-gold)', fontWeight: 800 }}>+ ₩ 100,000</span>
+                </div>
+              </div>
+              <div className="premium-card" style={{ padding: '20px' }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>2026.03.05</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                  <span>수강료 차감 / COURSE FEE</span>
+                  <span style={{ color: '#FF4B4B', fontWeight: 800 }}>- ₩ 150,000</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'NOTICES' && (
+          <section>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '1.5rem' }}>공지사항 / NOTICES</h2>
+              <div style={{ padding: '4px 12px', background: 'var(--accent-gold)', color: 'black', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 900 }}>
+                {relevantNotices.filter(n => !n.readBy.includes(user.id)).length} UNREAD
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {relevantNotices.length === 0 && <div style={{ textAlign: 'center', padding: '100px 0', color: '#444' }}>전달된 공지사항이 없습니다.</div>}
+              {relevantNotices.map(notice => {
+                const isRead = notice.readBy.includes(user.id);
+                return (
+                  <div 
+                    key={notice.id} 
+                    className="premium-card" 
+                    style={{ padding: '24px', border: isRead ? '1px solid #222' : '1px solid var(--accent-gold)', cursor: 'pointer', position: 'relative' }}
+                    onClick={() => {
+                      if (!isRead) onReadNotice(notice.id);
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <h4 style={{ fontWeight: 800, color: isRead ? 'white' : 'var(--accent-gold)', fontSize: '1.1rem' }}>{notice.title}</h4>
+                      {!isRead && <div style={{ padding: '2px 8px', background: 'var(--accent-gold)', color: 'black', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 900 }}>NEW</div>}
+                    </div>
+                    <p style={{ fontSize: '0.9rem', color: isRead ? 'rgba(255,255,255,0.5)' : 'white', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{notice.content}</p>
+                    <p style={{ fontSize: '0.65rem', color: 'var(--text-grey)', marginTop: '20px', textAlign: 'right' }}>{new Date(notice.createdAt).toLocaleString()}</p>
+                  </div>
+                );
               })}
             </div>
           </section>
-        </>
-      )}
+        )}
 
-      {activeTab === 'HISTORY' && (
-        <section>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '24px' }}>이용 내역 / USAGE HISTORY</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div className="premium-card" style={{ padding: '20px' }}>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>2026.03.10</p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                <span>포인트 충전 / RECHARGE</span>
-                <span style={{ color: 'var(--accent-gold)', fontWeight: 800 }}>+ ₩ 100,000</span>
+        {activeTab === 'INFO' && (
+          <section>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '24px' }}>내 정보 / ACCOUNT INFO</h2>
+            <div className="premium-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>성함 (NAME)</p>
+                <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>{user.name}</p>
+              </div>
+              <div>
+                <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>관리 번호 (NUMBER)</p>
+                <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>{user.studentNo || user.id}</p>
+              </div>
+              <div>
+                <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>연락처 (PHONE)</p>
+                <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>{user.phone || 'N/A'}</p>
+              </div>
+              <div>
+                <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>회원 등급 (MEMBERSHIP)</p>
+                <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>ROYAL MEMBERSHIP</p>
+              </div>
+              <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(191,149,63,0.05)', borderRadius: '12px', border: '1px dashed var(--accent-gold)' }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--accent-gold)', lineHeight: '1.5' }}>ℹ️ 회원 정보 수정은 센터 데스크를 통해서만 가능합니다. 비밀번호 변경이 필요한 경우 관리자에게 문의해 주세요.</p>
               </div>
             </div>
-            <div className="premium-card" style={{ padding: '20px' }}>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-grey)' }}>2026.03.05</p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                <span>수강료 차감 / COURSE FEE</span>
-                <span style={{ color: '#FF4B4B', fontWeight: 800 }}>- ₩ 150,000</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'INFO' && (
-        <section>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '24px' }}>내 정보 / ACCOUNT INFO</h2>
-          <div className="premium-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>성함 (NAME)</p>
-              <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>{user.name}</p>
-            </div>
-            <div>
-              <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>관리 번호 (NUMBER)</p>
-              <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>{user.studentNo || user.id}</p>
-            </div>
-            <div>
-              <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>연락처 (PHONE)</p>
-              <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>{user.phone || 'N/A'}</p>
-            </div>
-            <div>
-              <p style={{ color: 'var(--text-grey)', fontSize: '0.8rem' }}>회원 등급 (MEMBERSHIP)</p>
-              <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)' }}>ROYAL MEMBERSHIP</p>
-            </div>
-            <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(191,149,63,0.05)', borderRadius: '12px', border: '1px dashed var(--accent-gold)' }}>
-              <p style={{ fontSize: '0.8rem', color: 'var(--accent-gold)', lineHeight: '1.5' }}>ℹ️ 회원 정보 수정은 센터 데스크를 통해서만 가능합니다. 비밀번호 변경이 필요한 경우 관리자에게 문의해 주세요.</p>
-            </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
       {/* Navigation for Students - REMOVED, now handled by App component */}
 
@@ -1587,6 +1701,7 @@ const App: React.FC = () => {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [generalAdmins, setGeneralAdmins] = useState<BaseUser[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [discountRate, setDiscountRate] = useState(30);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -1622,6 +1737,7 @@ const App: React.FC = () => {
         setInstructors(remoteData.instructors || INITIAL_INSTRUCTORS);
         setGeneralAdmins(remoteData.admins || INITIAL_GENERAL_ADMINS);
         setCourses(remoteData.courses || INITIAL_COURSES);
+        setNotices(remoteData.notices || []);
         setDiscountRate(remoteData.discount_rate || 30);
         
         // Refresh currentUser object from the newly loaded data
@@ -1690,6 +1806,37 @@ const App: React.FC = () => {
   useEffect(() => {
     syncToCloud('discount_rate', discountRate);
   }, [discountRate]);
+
+  useEffect(() => {
+    syncToCloud('notices', notices);
+  }, [notices]);
+
+  const handleSendNotice = (title: string, content: string, targetIds: string[]) => {
+    const newNotice: Notice = {
+      id: Date.now().toString(),
+      senderId: currentUser?.id || 'admin',
+      targetIds,
+      title,
+      content,
+      createdAt: new Date().toISOString(),
+      readBy: []
+    };
+    setNotices([newNotice, ...notices]);
+    alert('공지사항이 전송되었습니다.');
+  };
+
+  const handleDeleteNotice = (id: string) => {
+    if (window.confirm('공지사항을 삭제하시겠습니까?')) {
+      setNotices(notices.filter(n => n.id !== id));
+    }
+  };
+
+  const handleReadNotice = (noticeId: string) => {
+    if (!currentUser) return;
+    setNotices(notices.map(n => 
+      n.id === noticeId ? { ...n, readBy: [...new Set([...n.readBy, currentUser.id])] } : n
+    ));
+  };
 
   // --- Handlers ---
   const handleLogin = (e: React.FormEvent) => {
@@ -2177,6 +2324,9 @@ const App: React.FC = () => {
               setEditCourse={setEditCourse}
               editCourse={editCourse}
               onUpdateCourseInfo={updateCourseInfo}
+              notices={notices}
+              onSendNotice={handleSendNotice}
+              onDeleteNotice={handleDeleteNotice}
             />
           )}
           {currentUser.role === 'INSTRUCTOR' && (
@@ -2201,6 +2351,8 @@ const App: React.FC = () => {
               onLogout={handleLogout}
               onRecharge={handleRecharge}
               activeTab={activeStudentTab}
+              notices={notices}
+              onReadNotice={handleReadNotice}
             />
           )}
 
@@ -2218,6 +2370,10 @@ const App: React.FC = () => {
                 <div onClick={() => setActiveTab('REPORT')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
                   <BarChart3 color={activeTab === 'REPORT' ? 'var(--accent-gold)' : 'white'} size={20} />
                   <span style={{ fontSize: '0.6rem', color: activeTab === 'REPORT' ? 'var(--accent-gold)' : 'white', marginTop: '4px' }}>통계 / RPT</span>
+                </div>
+                <div onClick={() => setActiveTab('NOTICES')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
+                  <Bell color={activeTab === 'NOTICES' ? 'var(--accent-gold)' : 'white'} size={20} />
+                  <span style={{ fontSize: '0.6rem', color: activeTab === 'NOTICES' ? 'var(--accent-gold)' : 'white', marginTop: '4px' }}>공지 / NTE</span>
                 </div>
                 <div onClick={() => setActiveTab('FINANCE')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
                   <DollarSign color={activeTab === 'FINANCE' ? 'var(--accent-gold)' : 'white'} size={20} />
@@ -2244,16 +2400,17 @@ const App: React.FC = () => {
                   <History color={activeStudentTab === 'HISTORY' ? 'var(--accent-gold)' : 'white'} size={20} />
                   <span style={{ fontSize: '0.6rem', color: activeStudentTab === 'HISTORY' ? 'var(--accent-gold)' : 'white', marginTop: '4px' }}>내역 / HISTORY</span>
                 </div>
+                <div onClick={() => setActiveStudentTab('NOTICES')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
+                  <Bell color={activeStudentTab === 'NOTICES' ? 'var(--accent-gold)' : 'white'} size={20} />
+                  {(() => {
+                    const unreadCount = notices.filter(n => (n.targetIds.length === 0 || n.targetIds.includes(currentUser.id)) && !n.readBy.includes(currentUser.id)).length;
+                    return unreadCount > 0 ? <div style={{ position: 'absolute', top: '-4px', right: '4px', width: '8px', height: '8px', borderRadius: '50%', background: '#FF4B4B', border: '2px solid black' }} /> : null;
+                  })()}
+                  <span style={{ fontSize: '0.6rem', color: activeStudentTab === 'NOTICES' ? 'var(--accent-gold)' : 'white', marginTop: '4px' }}>공지 / NTE</span>
+                </div>
                 <div onClick={() => setActiveStudentTab('INFO')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}>
                   <User color={activeStudentTab === 'INFO' ? 'var(--accent-gold)' : 'white'} size={20} />
                   <span style={{ fontSize: '0.6rem', color: activeStudentTab === 'INFO' ? 'var(--accent-gold)' : 'white', marginTop: '4px' }}>정보 / INFO</span>
-                </div>
-                <div
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', color: 'white' }}
-                  onClick={handleLogout}
-                >
-                  <LogOut size={20} />
-                  <span style={{ fontSize: '0.7rem', marginTop: '4px' }}>로그아웃 / LOGOUT</span>
                 </div>
               </>
             ) : (
