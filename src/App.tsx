@@ -199,7 +199,7 @@ interface AdminViewProps {
   selectedDate: string;
   setEditUser: (user: any) => void;
   editUser: any;
-  updateUserInfo: (id: string, newName: string, newBd: string, newPw: string, newPhone?: string, newCourseId?: string) => void;
+  updateUserInfo: (id: string, newName: string, newBd: string, newPw: string, newPhone?: string, newCourseIds?: string[]) => void;
   onShowStats: () => void;
   onAddGeneralAdmin: (name: string, bd: string, pw: string) => void;
   onDeleteAdmin: (id: string) => void;
@@ -212,7 +212,7 @@ interface AdminViewProps {
   onBulkAddStudents: (data: string) => void;
   onUpdatePayment: (sid: string, cid: string, amount: number, isFull: boolean) => void;
   onUpdateCourseFee: (id: string, fee: number) => void;
-  onToggleAttendance: (sid: string) => void;
+  onToggleAttendance: (sid: string, cid: string) => void;
   onBulkDeleteStudents: (ids: string[]) => void;
   onBulkDeleteInstructors: (ids: string[]) => void;
   onBulkDeleteCourses: (ids: string[]) => void;
@@ -223,6 +223,9 @@ interface AdminViewProps {
   discountRate: number;
   onUpdateDiscountRate: (rate: number) => void;
   onBulkRegisterToCourse: (sids: string[], cid: string) => void;
+  setEditCourse: (course: Course | null) => void;
+  editCourse: Course | null;
+  onUpdateCourseInfo: (id: string, title: string, time: string, instructorId: string, fee: number) => void;
 }
 
 const AdminView: React.FC<AdminViewProps> = ({
@@ -232,7 +235,8 @@ const AdminView: React.FC<AdminViewProps> = ({
   onBulkAddStudents, onUpdatePayment, onUpdateCourseFee, onToggleAttendance,
   onBulkDeleteStudents, onBulkDeleteInstructors, onBulkDeleteCourses,
   onDownloadAttendance, onDownloadFinance, onUpdateDiscount, onDownloadStudentTemplate,
-  discountRate, onUpdateDiscountRate, onBulkRegisterToCourse
+  discountRate, onUpdateDiscountRate, onBulkRegisterToCourse,
+  setEditCourse, editCourse, onUpdateCourseInfo
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   useEffect(() => {
@@ -626,6 +630,7 @@ const AdminView: React.FC<AdminViewProps> = ({
                           placeholder="직접입력"
                         />
                       </div>
+                      <button onClick={() => setEditCourse(c)} style={{ background: 'none', border: 'none' }}><Edit3 size={18} color="var(--accent-gold)" /></button>
                       <button onClick={() => onDeleteCourse(c.id)} style={{ background: 'none', border: 'none' }}><Trash2 size={18} color="#FF4B4B" /></button>
                     </div>
                   </div>
@@ -656,11 +661,11 @@ const AdminView: React.FC<AdminViewProps> = ({
                       <span style={{ fontWeight: 700 }}>{s.name}</span>
                       <div style={{ display: 'flex', gap: '16px', fontSize: '0.75rem' }}>
                         <button
-                          onClick={() => onToggleAttendance(sid)}
+                          onClick={() => onToggleAttendance(sid, c.id)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                         >
-                          <span style={{ color: attended ? 'var(--accent-gold)' : '#555', fontWeight: 800 }}>
-                            {attended ? '✓ 출석완료' : '✗ 미출석'}
+                          <span style={{ color: s.attendance[`${c.id}_${selectedDate}`] ? 'var(--accent-gold)' : '#555', fontWeight: 800 }}>
+                            {s.attendance[`${c.id}_${selectedDate}`] ? '✓ 출석완료' : '✗ 미출석'}
                           </span>
                         </button>
                         <span style={{ color: (s.coursePayments[c.id]?.isFullyPaid) ? '#4CAF50' : '#FF4B4B', fontWeight: 800, borderLeft: '1px solid #333', paddingLeft: '16px' }}>
@@ -684,20 +689,30 @@ const AdminView: React.FC<AdminViewProps> = ({
               {students.map((s: Student) => (
                 <div key={s.id} className="premium-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700 }}>{s.name} <span style={{ fontSize: '0.65rem', opacity: 0.5 }}>({s.id})</span></span>
-                  <button
-                    onClick={() => onToggleAttendance(s.id)}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '20px',
-                      backgroundColor: s.attendance[selectedDate] ? 'var(--accent-gold)' : 'transparent',
-                      border: '1px solid var(--accent-gold)',
-                      color: s.attendance[selectedDate] ? 'black' : 'var(--accent-gold)',
-                      fontWeight: 800,
-                      fontSize: '0.7rem'
-                    }}
-                  >
-                    {s.attendance[selectedDate] ? '출석 완료 / ATTENDED' : '미출석 / ABSENT'}
-                  </button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
+                    {s.enrolledCourses.map(cid => {
+                      const c = courses.find(crs => crs.id === cid);
+                      if (!c) return null;
+                      const isAtt = s.attendance[`${cid}_${selectedDate}`];
+                      return (
+                        <button
+                          key={cid}
+                          onClick={() => onToggleAttendance(s.id, cid)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            backgroundColor: isAtt ? 'var(--accent-gold)' : 'rgba(191,149,63,0.1)',
+                            border: '1px solid var(--accent-gold)',
+                            color: isAtt ? 'black' : 'var(--accent-gold)',
+                            fontWeight: 800,
+                            fontSize: '0.6rem'
+                          }}
+                        >
+                          {c.title}: {isAtt ? '출석' : '미출석'}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -908,7 +923,7 @@ const AdminView: React.FC<AdminViewProps> = ({
         {editUser && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-            <div className="premium-card" style={{ width: '100%', padding: '32px' }}>
+            <div className="premium-card" style={{ width: '100%', padding: '32px', maxWidth: '500px' }}>
               <h2 style={{ marginBottom: '8px' }}>정보 수정 / EDIT INFO</h2>
               <p style={{ color: 'var(--text-grey)', fontSize: '0.75rem', marginBottom: '24px' }}>ID: {editUser.id} | 역할: {editUser.role}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
@@ -942,17 +957,21 @@ const AdminView: React.FC<AdminViewProps> = ({
                       />
                     </div>
                     <div>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>강좌 / COURSE</p>
-                      <select
-                        id="edit-course-input"
-                        defaultValue={editUser.enrolledCourses?.[0] || ""}
-                        style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
-                      >
-                        <option value="">수강 강좌 선택 / COURSE</option>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '8px' }}>수강 강좌 선택 / ENROLLED COURSES</p>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px', background: 'var(--primary-black)', padding: '12px', borderRadius: '12px', border: '1px solid var(--accent-gold)', maxHeight: '150px', overflowY: 'auto' }}>
                         {courses.map((c: Course) => (
-                          <option key={c.id} value={c.id}>{c.title}</option>
+                          <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                            <input
+                              type="checkbox"
+                              name="edit-stu-courses"
+                              value={c.id}
+                              defaultChecked={editUser.enrolledCourses?.includes(c.id)}
+                              style={{ width: '16px', height: '16px', accentColor: 'var(--accent-gold)' }}
+                            />
+                            {c.title}
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </div>
                   </>
                 )}
@@ -973,9 +992,15 @@ const AdminView: React.FC<AdminViewProps> = ({
                     const newBd = (document.getElementById('edit-bd-input') as HTMLInputElement).value.trim();
                     const newPw = (document.getElementById('edit-pw-input') as HTMLInputElement).value.trim();
                     const newPhone = (document.getElementById('edit-phone-input') as HTMLInputElement)?.value.trim() || "";
-                    const newCourseId = (document.getElementById('edit-course-input') as HTMLSelectElement)?.value || "";
+                    
+                    let newCourseIds: string[] = [];
+                    if (editUser.role === 'STUDENT') {
+                      const courseCheckboxes = document.querySelectorAll('input[name="edit-stu-courses"]:checked');
+                      newCourseIds = Array.from(courseCheckboxes).map(cb => (cb as HTMLInputElement).value);
+                    }
+                    
                     if (!newName || !newBd || !newPw) { alert('모든 항목을 입력해 주세요.'); return; }
-                    updateUserInfo(editUser.id, newName, newBd, newPw, newPhone, newCourseId);
+                    updateUserInfo(editUser.id, newName, newBd, newPw, newPhone, newCourseIds);
                   }}
                   style={{ flex: 1, padding: '16px', background: 'var(--accent-gold)', fontWeight: 800, borderRadius: '12px', color: 'black' }}
                 >
@@ -987,6 +1012,82 @@ const AdminView: React.FC<AdminViewProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Edit Course Info Modal */}
+      <AnimatePresence>
+        {editCourse && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.9)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+            <div className="premium-card" style={{ width: '100%', padding: '32px', maxWidth: '500px' }}>
+              <h2 style={{ marginBottom: '8px' }}>강좌 수정 / EDIT COURSE</h2>
+              <p style={{ color: 'var(--text-grey)', fontSize: '0.75rem', marginBottom: '24px' }}>ID: {editCourse.id}</p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
+                <div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>강좌명 / TITLE</p>
+                  <input
+                    id="edit-crs-title-input"
+                    placeholder="강좌명 (TITLE)"
+                    defaultValue={editCourse.title}
+                    style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
+                  />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>수업시간 / TIME</p>
+                  <input
+                    id="edit-crs-time-input"
+                    placeholder="수업시간 (TIME)"
+                    defaultValue={editCourse.time}
+                    style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
+                  />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>강사 선택 / INSTRUCTOR</p>
+                  <select
+                    id="edit-crs-inst-input"
+                    defaultValue={editCourse.instructorId}
+                    style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
+                  >
+                    <option value="">강사 선택 / SELECT INSTRUCTOR</option>
+                    {instructors.map((i: Instructor) => <option key={i.id} value={i.id}>{i.name} 강사</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>수강료 / FEE</p>
+                  <input
+                    id="edit-crs-fee-input"
+                    type="number"
+                    placeholder="수강료 (FEE)"
+                    defaultValue={editCourse.fee}
+                    style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => {
+                    const t = (document.getElementById('edit-crs-title-input') as HTMLInputElement).value.trim();
+                    const tm = (document.getElementById('edit-crs-time-input') as HTMLInputElement).value.trim();
+                    const instId = (document.getElementById('edit-crs-inst-input') as HTMLSelectElement).value;
+                    const f = parseInt((document.getElementById('edit-crs-fee-input') as HTMLInputElement).value) || 0;
+                    if (t && tm && instId) {
+                      onUpdateCourseInfo(editCourse.id, t, tm, instId, f);
+                    } else {
+                      alert('모든 정보를 입력해 주세요.');
+                    }
+                  }}
+                  style={{ flex: 1, padding: '16px', background: 'var(--accent-gold)', fontWeight: 800, borderRadius: '12px', color: 'black' }}
+                >
+                  저장 / SAVE
+                </button>
+                <button onClick={() => setEditCourse(null)} style={{ flex: 1, padding: '16px', background: 'transparent', border: '1px solid var(--text-grey)', color: 'white', borderRadius: '12px' }}>취소 / CANCEL</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };
@@ -997,7 +1098,7 @@ interface InstructorViewProps {
   courses: Course[];
   students: Student[];
   selectedDate: string;
-  toggleAttendance: (sid: string) => void;
+  toggleAttendance: (sid: string, cid: string) => void;
   onLogout: () => void;
   onAddStudent: (name: string, studentNo: string, phone: string, pw: string, courseId?: string, discountType?: DiscountType) => void;
   onDeleteStudent: (id: string) => void;
@@ -1048,11 +1149,11 @@ const InstructorView: React.FC<InstructorViewProps> = ({ user, courses, students
                     {c.studentIds.map((sid: string) => {
                       const s = students.find((student: Student) => student.id === sid);
                       if (!s) return null;
-                      const attended = s.attendance[selectedDate];
+                      const attended = s.attendance[`${c.id}_${selectedDate}`];
                       return (
                         <div key={sid} className="premium-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: 700 }}>{s.name} <span style={{ fontSize: '0.65rem', opacity: 0.5 }}>({s.id})</span></span>
-                          <button onClick={() => toggleAttendance(sid)}
+                          <button onClick={() => toggleAttendance(sid, c.id)}
                             style={{ padding: '8px 16px', borderRadius: '20px', backgroundColor: attended ? 'var(--accent-gold)' : 'transparent', border: '1px solid var(--accent-gold)', color: attended ? 'black' : 'var(--accent-gold)', fontWeight: 800, fontSize: '0.7rem' }}>
                             {attended ? '출석 완료' : '미출석'}
                           </button>
@@ -1497,6 +1598,7 @@ const App: React.FC = () => {
   const [selectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [editUser, setEditUser] = useState<any>(null);
+  const [editCourse, setEditCourse] = useState<Course | null>(null);
   const [showStatsModal, setShowStatsModal] = useState(false);
 
   // --- Helper for Cloud Sync ---
@@ -1616,23 +1718,17 @@ const App: React.FC = () => {
     }
   };
 
-  const updateUserInfo = (id: string, newName: string, newBd: string, newPw: string, newPhone: string = "", newCourseId: string = "") => {
+  const updateUserInfo = (id: string, newName: string, newBd: string, newPw: string, newPhone: string = "", newCourseIds: string[] = []) => {
     setStudents(prev => prev.map(s => {
       if (s.id === id) {
-        let updatedEnrolled = [...s.enrolledCourses];
         let updatedPayments = { ...s.coursePayments };
         
-        // If a new course is selected and it's not already in the list, replace the first one or add it
-        // To keep it simple and match common usage, if they only have one or we are changing it:
-        if (newCourseId) {
-          if (!updatedEnrolled.includes(newCourseId)) {
-            // If the student already has courses, we'll replace the first one for simplicity in this "edit" context
-            // unless the user wants to support multiple. But "individual edit" usually implies editing the main state.
-            // Let's just set it to the new course if it's a student and a course is selected.
-            updatedEnrolled = [newCourseId];
-            updatedPayments = { [newCourseId]: { amount: 0, isFullyPaid: false } };
+        // Ensure payment entries exist for all selected courses
+        newCourseIds.forEach(cid => {
+          if (!updatedPayments[cid]) {
+            updatedPayments[cid] = { amount: 0, isFullyPaid: false };
           }
-        }
+        });
 
         return { 
           ...s, 
@@ -1641,7 +1737,7 @@ const App: React.FC = () => {
           studentNo: newBd, 
           password: newPw, 
           phone: newPhone,
-          enrolledCourses: updatedEnrolled,
+          enrolledCourses: newCourseIds,
           coursePayments: updatedPayments
         };
       }
@@ -1652,28 +1748,30 @@ const App: React.FC = () => {
     setInstructors(prev => prev.map(i => i.id === id ? { ...i, name: newName, birthdate: newBd, password: newPw } : i));
     setGeneralAdmins(prev => prev.map(a => a.id === id ? { ...a, name: newName, birthdate: newBd, password: newPw } : a));
 
-    // Update course studentIds if student's course changed
-    if (newCourseId) {
-      setCourses(prev => prev.map(c => {
-        // Remove student from other courses
-        const filteredIds = c.studentIds.filter(sid => sid !== id);
-        // Add to the new course
-        if (c.id === newCourseId) {
-          return { ...c, studentIds: Array.from(new Set([...filteredIds, id])) };
-        }
-        return { ...c, studentIds: filteredIds };
-      }));
-    }
+    // Update course studentIds to reflect current enrollment
+    setCourses(prev => prev.map(c => {
+      // Find students other than the one being updated
+      const otherStudentIds = c.studentIds.filter(sid => sid !== id);
+      
+      if (newCourseIds.includes(c.id)) {
+        // Add student to course if selected
+        return { ...c, studentIds: Array.from(new Set([...otherStudentIds, id])) };
+      } else {
+        // Remove student from course if not selected
+        return { ...c, studentIds: otherStudentIds };
+      }
+    }));
 
     setEditUser(null);
     alert(`수정되었습니다: ${newName} / ${newBd}`);
   };
 
-  const toggleAttendance = (studentId: string) => {
+  const toggleAttendance = (studentId: string, courseId: string) => {
+    const key = `${courseId}_${selectedDate}`;
     setStudents(prev => prev.map(s => {
       if (s.id === studentId) {
-        const currentAtt = s.attendance[selectedDate] || false;
-        return { ...s, attendance: { ...s.attendance, [selectedDate]: !currentAtt } };
+        const currentAtt = s.attendance[key] || false;
+        return { ...s, attendance: { ...s.attendance, [key]: !currentAtt } };
       }
       return s;
     }));
@@ -1910,6 +2008,28 @@ const App: React.FC = () => {
     setCourses(prev => prev.map(c => c.id === id ? { ...c, fee } : c));
   };
 
+  const updateCourseInfo = (id: string, title: string, time: string, instructorId: string, fee: number) => {
+    const oldCourse = courses.find(c => c.id === id);
+    const oldInstId = oldCourse?.instructorId;
+
+    setCourses(prev => prev.map(c => c.id === id ? { ...c, title, time, instructorId, fee } : c));
+    
+    if (oldInstId !== instructorId) {
+      setInstructors(prev => prev.map(inst => {
+        if (inst.id === oldInstId) {
+          return { ...inst, assignedCourses: inst.assignedCourses.filter(cid => cid !== id) };
+        }
+        if (inst.id === instructorId) {
+          return { ...inst, assignedCourses: Array.from(new Set([...inst.assignedCourses, id])) };
+        }
+        return inst;
+      }));
+    }
+    
+    setEditCourse(null);
+    alert(`강좌가 수정되었습니다: ${title}`);
+  };
+
   const updateStudentPayment = (sid: string, cid: string, amount: number, isFullyPaid: boolean) => {
     setStudents(prev => prev.map(s => {
       if (s.id === sid) {
@@ -1968,7 +2088,7 @@ const App: React.FC = () => {
           const p = s.coursePayments[c.id] || { amount: 0, isFullyPaid: false };
           const discountAmt = (s.discountedCourseId === c.id && s.discountType && s.discountType !== 'NONE') ? Math.round(c.fee * (discountRate / 100)) : 0;
           const discountLabel = DISCOUNT_LABELS[s.discountType || 'NONE'].split(' / ')[0];
-          data.push([s.studentNo || s.id, s.name, s.phone || 'N/A', c.title, discountLabel, c.fee, p.amount, discountAmt, p.isFullyPaid ? "완납" : "미납"]);
+          data.push([s.studentNo || s.id, s.name, s.phone || 'N/A', c.title, discountLabel, c.fee.toString(), p.amount.toString(), discountAmt.toString(), p.isFullyPaid ? "완납" : "미납"]);
         }
       });
     });
@@ -2054,6 +2174,9 @@ const App: React.FC = () => {
               discountRate={discountRate}
               onUpdateDiscountRate={setDiscountRate}
               onBulkRegisterToCourse={bulkRegisterToCourse}
+              setEditCourse={setEditCourse}
+              editCourse={editCourse}
+              onUpdateCourseInfo={updateCourseInfo}
             />
           )}
           {currentUser.role === 'INSTRUCTOR' && (
