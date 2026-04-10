@@ -199,7 +199,7 @@ interface AdminViewProps {
   selectedDate: string;
   setEditUser: (user: any) => void;
   editUser: any;
-  updateUserInfo: (id: string, newName: string, newBd: string, newPw: string, newPhone?: string) => void;
+  updateUserInfo: (id: string, newName: string, newBd: string, newPw: string, newPhone?: string, newCourseId?: string) => void;
   onShowStats: () => void;
   onAddGeneralAdmin: (name: string, bd: string, pw: string) => void;
   onDeleteAdmin: (id: string) => void;
@@ -931,15 +931,30 @@ const AdminView: React.FC<AdminViewProps> = ({
                   />
                 </div>
                 {editUser.role === 'STUDENT' && (
-                  <div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>연락처 / PHONE</p>
-                    <input
-                      id="edit-phone-input"
-                      placeholder="연락처 (PHONE)"
-                      defaultValue={editUser.phone || ''}
-                      style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>연락처 / PHONE</p>
+                      <input
+                        id="edit-phone-input"
+                        placeholder="연락처 (PHONE)"
+                        defaultValue={editUser.phone || ''}
+                        style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
+                      />
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>강좌 / COURSE</p>
+                      <select
+                        id="edit-course-input"
+                        defaultValue={editUser.enrolledCourses?.[0] || ""}
+                        style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
+                      >
+                        <option value="">수강 강좌 선택 / COURSE</option>
+                        {courses.map((c: Course) => (
+                          <option key={c.id} value={c.id}>{c.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
                 )}
                 <div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-grey)', marginBottom: '6px' }}>비밀번호 / PASSWORD</p>
@@ -958,8 +973,9 @@ const AdminView: React.FC<AdminViewProps> = ({
                     const newBd = (document.getElementById('edit-bd-input') as HTMLInputElement).value.trim();
                     const newPw = (document.getElementById('edit-pw-input') as HTMLInputElement).value.trim();
                     const newPhone = (document.getElementById('edit-phone-input') as HTMLInputElement)?.value.trim() || "";
+                    const newCourseId = (document.getElementById('edit-course-input') as HTMLSelectElement)?.value || "";
                     if (!newName || !newBd || !newPw) { alert('모든 항목을 입력해 주세요.'); return; }
-                    updateUserInfo(editUser.id, newName, newBd, newPw, newPhone);
+                    updateUserInfo(editUser.id, newName, newBd, newPw, newPhone, newCourseId);
                   }}
                   style={{ flex: 1, padding: '16px', background: 'var(--accent-gold)', fontWeight: 800, borderRadius: '12px', color: 'black' }}
                 >
@@ -1600,10 +1616,55 @@ const App: React.FC = () => {
     }
   };
 
-  const updateUserInfo = (id: string, newName: string, newBd: string, newPw: string, newPhone: string = "") => {
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, name: newName, birthdate: newBd, studentNo: newBd, password: newPw, phone: newPhone } : s));
+  const updateUserInfo = (id: string, newName: string, newBd: string, newPw: string, newPhone: string = "", newCourseId: string = "") => {
+    setStudents(prev => prev.map(s => {
+      if (s.id === id) {
+        let updatedEnrolled = [...s.enrolledCourses];
+        let updatedPayments = { ...s.coursePayments };
+        
+        // If a new course is selected and it's not already in the list, replace the first one or add it
+        // To keep it simple and match common usage, if they only have one or we are changing it:
+        if (newCourseId) {
+          if (!updatedEnrolled.includes(newCourseId)) {
+            // If the student already has courses, we'll replace the first one for simplicity in this "edit" context
+            // unless the user wants to support multiple. But "individual edit" usually implies editing the main state.
+            // Let's just set it to the new course if it's a student and a course is selected.
+            updatedEnrolled = [newCourseId];
+            updatedPayments = { [newCourseId]: { amount: 0, isFullyPaid: false } };
+          }
+        }
+
+        return { 
+          ...s, 
+          name: newName, 
+          birthdate: newBd, 
+          studentNo: newBd, 
+          password: newPw, 
+          phone: newPhone,
+          enrolledCourses: updatedEnrolled,
+          coursePayments: updatedPayments
+        };
+      }
+      return s;
+    }));
+
+    // Update instructors and admins
     setInstructors(prev => prev.map(i => i.id === id ? { ...i, name: newName, birthdate: newBd, password: newPw } : i));
     setGeneralAdmins(prev => prev.map(a => a.id === id ? { ...a, name: newName, birthdate: newBd, password: newPw } : a));
+
+    // Update course studentIds if student's course changed
+    if (newCourseId) {
+      setCourses(prev => prev.map(c => {
+        // Remove student from other courses
+        const filteredIds = c.studentIds.filter(sid => sid !== id);
+        // Add to the new course
+        if (c.id === newCourseId) {
+          return { ...c, studentIds: Array.from(new Set([...filteredIds, id])) };
+        }
+        return { ...c, studentIds: filteredIds };
+      }));
+    }
+
     setEditUser(null);
     alert(`수정되었습니다: ${newName} / ${newBd}`);
   };
