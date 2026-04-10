@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from './supabaseClient';
 import {
   CreditCard, History, User,
   Users, BookOpen, LogOut, CheckCircle2, XCircle, Trash2,
   DollarSign, Edit3, Clock, Eye, EyeOff, BarChart3, TrendingUp, ShieldCheck,
-  Bell, Send, Mail, MessageSquare
+  Bell, Send, Trees
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import './index.css';
-import logo from './logo.png';
+// import logo from './logo.png';
 
 // --- Types ---
 type Role = 'SUPER_ADMIN' | 'ADMIN' | 'INSTRUCTOR' | 'STUDENT';
@@ -114,15 +114,9 @@ const Header: React.FC = () => (
       backgroundColor: 'var(--secondary-black)',
       flexShrink: 0
     }}>
-      <img 
-        src={logo} 
-        alt="Little Forest Logo" 
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        onError={(e) => {
-          // Fallback if image not found
-          (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/144/evergreen-tree.png';
-        }}
-      />
+      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--primary-black)' }}>
+        <Trees color="var(--accent-gold)" size={42} strokeWidth={1.5} />
+      </div>
     </div>
     <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       <h1 style={{ 
@@ -253,7 +247,7 @@ const AdminView: React.FC<AdminViewProps> = ({
   setEditCourse, editCourse, onUpdateCourseInfo, notices, onSendNotice, onDeleteNotice
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [noticeForm, setNoticeForm] = useState({ title: '', content: '', target: 'ALL' });
+  const [noticeForm, setNoticeForm] = useState({ title: '', content: '', targetIds: [] as string[], isAll: true });
   useEffect(() => {
     setSelectedIds([]);
   }, [activeTab]);
@@ -948,24 +942,49 @@ const AdminView: React.FC<AdminViewProps> = ({
                   onChange={e => setNoticeForm({ ...noticeForm, content: e.target.value })}
                   style={{ width: '100%', padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)', minHeight: '120px' }}
                 />
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <select 
-                    value={noticeForm.target}
-                    onChange={e => setNoticeForm({ ...noticeForm, target: e.target.value })}
-                    style={{ flex: 1, padding: '14px', borderRadius: '12px', background: 'var(--primary-black)', color: 'white', border: '1px solid var(--accent-gold)' }}
-                  >
-                    <option value="ALL">모든 수강생 / ALL STUDENTS</option>
-                    {students.map(s => <option key={s.id} value={s.id}>{s.name} (#{s.studentNo || s.id})</option>)}
-                  </select>
+                <div style={{ background: 'var(--primary-black)', padding: '16px', borderRadius: '12px', border: '1px solid var(--accent-gold)' }}>
+                  <div style={{ display: 'flex', gap: '20px', marginBottom: '16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input type="radio" checked={noticeForm.isAll} onChange={() => setNoticeForm({ ...noticeForm, isAll: true, targetIds: [] })} style={{ accentColor: 'var(--accent-gold)' }} />
+                      <span>전체 수강생 / ALL</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input type="radio" checked={!noticeForm.isAll} onChange={() => setNoticeForm({ ...noticeForm, isAll: false })} style={{ accentColor: 'var(--accent-gold)' }} />
+                      <span>수강생 선택 / SELECT</span>
+                    </label>
+                  </div>
+                  
+                  {!noticeForm.isAll && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px', maxHeight: '150px', overflowY: 'auto', padding: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', marginBottom: '16px' }}>
+                      {students.map(s => (
+                        <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                          <input 
+                            type="checkbox" 
+                            checked={noticeForm.targetIds.includes(s.id)} 
+                            onChange={(e) => {
+                              const ids = e.target.checked 
+                                ? [...noticeForm.targetIds, s.id]
+                                : noticeForm.targetIds.filter(id => id !== s.id);
+                              setNoticeForm({ ...noticeForm, targetIds: ids });
+                            }}
+                            style={{ accentColor: 'var(--accent-gold)' }}
+                          />
+                          {s.name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
                   <button 
                     onClick={() => {
                       if (!noticeForm.title || !noticeForm.content) { alert('제목과 내용을 입력해주세요.'); return; }
-                      onSendNotice(noticeForm.title, noticeForm.content, noticeForm.target === 'ALL' ? [] : [noticeForm.target]);
-                      setNoticeForm({ title: '', content: '', target: 'ALL' });
+                      if (!noticeForm.isAll && noticeForm.targetIds.length === 0) { alert('수강생을 한 명 이상 선택해주세요.'); return; }
+                      onSendNotice(noticeForm.title, noticeForm.content, noticeForm.targetIds);
+                      setNoticeForm({ title: '', content: '', targetIds: [], isAll: true });
                     }}
-                    style={{ padding: '14px 24px', background: 'var(--accent-gold)', color: 'black', fontWeight: 800, borderRadius: '12px', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    style={{ width: '100%', padding: '14px', background: 'var(--accent-gold)', color: 'black', fontWeight: 800, borderRadius: '12px', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                   >
-                    <Send size={18} /> 보내기 / SEND
+                    <Send size={18} /> 공지사항 전송하기 / SEND NOTICE
                   </button>
                 </div>
               </div>
